@@ -1,0 +1,106 @@
+package userAuthentication;
+
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import org.bson.Document;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.Scanner;
+
+public class UserAuthentication {
+
+    private final MongoCollection<Document> userCollection;
+
+    public UserAuthentication(String connectionString, String databaseName, String collectionName) {
+        MongoClient mongoClient = MongoClients.create(connectionString);
+        MongoDatabase database = mongoClient.getDatabase(databaseName);
+        this.userCollection = database.getCollection(collectionName);
+    }
+
+    public void storeUser(String username, String password) {
+        String hashedPassword = hashPassword(password);
+        Document userDocument = new Document("username", username).append("password", hashedPassword);
+        userCollection.insertOne(userDocument);
+    }
+
+    public boolean authenticateUser(String username, String password) {
+        Document userDocument = userCollection.find(new Document("username", username)).first();
+        if (userDocument != null) {
+            String storedHashedPassword = userDocument.getString("password");
+            String hashedPassword = hashPassword(password);
+            return storedHashedPassword.equals(hashedPassword);
+        }
+        return false;
+    }
+
+    private String hashPassword(String password) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(password.getBytes());
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace(); 
+            return null; // 
+        }
+    }
+
+    public static void main(String[] args) {
+        String connectionString = "mongodb://localhost:27017";
+        String databaseName = "practice1"; 
+        String collectionName = "users"; 
+
+        UserAuthentication auth = new UserAuthentication(connectionString, databaseName, collectionName);
+
+        
+        Scanner scanner = new Scanner(System.in);
+        int option;
+        
+        do {
+        	menu();
+        	option = scanner.nextInt();
+	        switch(option) {
+	        case 1: 
+	        	System.out.print("Enter User Name: ");
+	        	String usrNm = scanner.next();
+	        	System.out.print("Enter Password: ");
+	        	String pass = scanner.next();
+	        	auth.storeUser(usrNm, pass);
+	        	break;
+	        	
+	        case 2:
+	        	System.out.print("Enter User Name: ");
+	        	String authUsrNm = scanner.next();
+	        	System.out.print("Enter Password: ");
+	        	String authPass = scanner.next();
+	        	boolean isAuthenticated = auth.authenticateUser(authUsrNm, authPass);
+	        	System.out.println("Authentication result: " + isAuthenticated);
+	        	break;
+	        case 3:
+	        	System.out.println(
+	                    "\nThank you for using the program. Goodbye!\n");
+	                System.exit(0);
+	
+	                break;
+	        default:
+	            System.out.println("\nInvalid input\n");
+	            break;
+	        }
+        } while(option != 3);
+        
+        scanner.close();
+
+    }
+    public static void menu()
+    {
+
+        // Printing statements displaying menu on console
+        System.out.println("MENU");
+        System.out.println("1: Add New User");
+        System.out.println("2: Validate User");
+        System.out.println("3: Exit");
+        System.out.print("Enter your selection : ");
+    }
+}
